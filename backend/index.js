@@ -16,6 +16,8 @@ const { pushRepo } = require("./controllers/push.js");
 const { pullRepo } = require("./controllers/pull.js");
 const { revertRepo } = require("./controllers/revert.js");
 
+const mainRouter = require("./routes/main.router.js");
+
 dotenv.config();
 
 yargs(hideBin(process.argv))
@@ -81,9 +83,7 @@ function startServer() {
 
   app.use(cors({ origin: "*" }));
 
-  app.get("/", (req, res) => {
-    res.send("Welcome!");
-  });
+  app.use("/", mainRouter);
 
   let user = "test";
   //socket creation

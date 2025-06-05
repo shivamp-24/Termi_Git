@@ -99,3 +99,41 @@ A terminal-based version control system inspired by Git, built with Node.js and 
   - Created `userSchema` with fields: `username`, `email`, `password`, `repositories` (ref: Repository), `followedUsers` (ref: User), `starRepos` (ref: Repository).
   - Defined `repoSchema` with fields: `name`, `description`, `content`, `visibility`, `owner` (ref: User), `issues` (ref: Issue).
   - Established `issueSchema` with fields: `title`, `description`, `status`, `repository` (ref: Repository).
+
+### Day 3: User, Repository, and Issue API Development
+
+- **Dependency Installation**:
+  - Installed `jsonwebtoken` (`npm install jsonwebtoken`) to generate and verify JWTs for user authentication.
+  - Installed `bcryptjs` (`npm install bcryptjs`) to securely hash passwords for storage in MongoDB.
+  - Installed `mongodb` (`npm install mongodb`) to interact with MongoDB for user data operations.
+- **User API Setup**:
+  - Created `userController.js` with controller functions: `getAllUsers`, `login`, `signup`, `getUserProfile`, `updateUserProfile`, `deleteUserProfile`.
+  - Developed `user.router.js` using `express.Router()` to define API endpoints (`GET /users`, `POST /signup`, `POST /login`, `GET /profile/:id`, `PUT /profile/:id`, `DELETE /profile/:id`) linked to controllers.
+  - Created `main.router.js` to aggregate routers, using `userRouter` via `mainRouter.use("/users", userRouter)`.
+  - Integrated `mainRouter` in `index.js` with `app.use("/", mainRouter)` for modular routing.
+- **Repository API Setup**:
+  - Created `repoController.js` with controller functions: `createRepository`, `getAllRepositories`, `fetchRepositoryById`, `fetchRepositoryByName`, `fetchRepositoryForCurrentUser`, `toggleVisibilityById`, `updateRepositoryById`, `deleteRepositoryById`.
+  - Developed `repo.router.js` using `express.Router()` to define API endpoints (`POST /repos`, `GET /repos`, `GET /repos/:id`, `GET /repos/name/:name`, `GET /repos/user/:userId`, `PATCH /repos/toggle/:id`, `PUT /repos/:id`, `DELETE /repos/:id`) linked to controllers.
+  - Integrated `repoRouter` in `main.router.js` with `mainRouter.use("/repos", repoRouter)`.
+- **Issue API Setup**:
+  - Created `issueController.js` with controller functions: `createIssue`, `getAllIssues`, `getIssueById`, `updateIssueById`, `deleteIssueById`.
+  - Developed `issue.router.js` using `express.Router()` to define API endpoints (`POST /issues`, `GET /issues`, `GET /issues/:id`, `PUT /issues/:id`, `DELETE /issues/:id`) linked to controllers.
+  - Integrated `issueRouter` in `main.router.js` with `mainRouter.use("/issues", issueRouter)`.
+- **User Signup Implementation**:
+  - Implemented `signup` in `userController.js`:
+    - Established a global MongoDB client with an async `connectClient` function using `MongoClient` from `mongodb`.
+    - Destructured `username`, `email`, and `password` from `req.body`.
+    - Hashed passwords with `bcryptjs` before inserting user data into the `users` collection.
+    - Generated a JWT token with `jsonwebtoken` and returned it in the response.
+- **User Login Implementation**:
+  - Implemented `login` in `userController.js`:
+    - Connected to the `users` collection via `connectClient`.
+    - Destructured `email` and `password` from `req.body`, verified user existence, and validated passwords using `bcrypt.compare`.
+    - Returned a JWT token and `userId` in JSON format upon successful authentication.
+- **User Profile Management**:
+  - Implemented `getAllUsers` and `getUserProfile` in `userController.js`:
+    - Fetched all users with `find({})` for `getAllUsers`.
+    - Retrieved a user by `id` from `req.params.id` for `getUserProfile`, sending the user data in the response.
+  - Implemented `updateUserProfile` and `deleteUserProfile`:
+    - For `updateUserProfile`, created `updateFields` to store updated data, hashed new passwords with `bcryptjs` if provided, and updated the user in the `users` collection.
+    - For `deleteUserProfile`, deleted the user by `id` if found in the `users` collection.
