@@ -137,3 +137,57 @@ A terminal-based version control system inspired by Git, built with Node.js and 
   - Implemented `updateUserProfile` and `deleteUserProfile`:
     - For `updateUserProfile`, created `updateFields` to store updated data, hashed new passwords with `bcryptjs` if provided, and updated the user in the `users` collection.
     - For `deleteUserProfile`, deleted the user by `id` if found in the `users` collection.
+
+### Day 4: Repository and Issue APIs, Frontend Setup, and Authentication
+
+- **Repository Creation**:
+  - Implemented `createRepository` in `repoController.js`:
+    - Destructured `name`, `owner`, `issues`, `description`, `content`, `visibility` from `req.body`.
+    - Validated required fields (`name`, `owner`), throwing errors if undefined.
+    - Saved the repository to MongoDB using `new Repository().save()` with Mongoose.
+- **Repository Fetching**:
+  - Implemented fetching functions in `repoController.js`:
+    - `getAllRepositories`: Retrieved all repositories with `Repository.find({})`, populating `owner` and `issues` fields for related data.
+    - `fetchRepositoryById`: Fetched a repository by `id` from `req.params` using `findById`, populating related fields.
+    - `fetchRepositoryByName`: Retrieved a repository by `name` from `req.params` using `find({ name })`, populating related fields.
+  - Used async/await and `try-catch` for error handling in all functions.
+- **Repository Management**:
+  - Implemented management functions in `repoController.js`:
+    - `fetchRepositoryForCurrentUser`: Retrieved repositories owned by the authenticated user (`req.user.id` from JWT middleware) using `find({ owner: userId })`.
+    - `updateRepositoryById`: Updated `content` and `description` for a repository by `id` from `req.params`, saving changes with `save()`.
+    - `toggleVisibilityById`: Toggled the `visibility` field for a repository by `id`, updating and saving the document.
+    - `deleteRepositoryById`: Deleted a repository by `id` using `findByIdAndDelete`.
+- **Issue Management**:
+  - Implemented functions in `issueController.js`:
+    - `createIssue`: Created an issue with `title`, `description` from `req.body`, and `repositoryId` from `req.params`, saving with `new Issue().save()`.
+    - `updateIssueById`: Updated `title`, `description`, and `status` for an issue by `id` from `req.params`, saving changes.
+    - `deleteIssueById`: Deleted an issue by `id` using `findByIdAndDelete`.
+    - `getAllIssues`: Fetched issues for a repository by `repositoryId` from `req.params` using `find({ repository: id })`.
+    - `getIssueById`: Retrieved an issue by `id` using `findById`.
+  - Ensured async/await and `try-catch` for robust error handling.
+- **Frontend Setup**:
+  - Initialized a React frontend using Vite (`npm create vite@latest`), providing a fast development environment.
+  - Installed dependencies: `npm install` in the `frontend/` directory.
+  - Started the development server with `npm run dev`.
+- **Frontend Folder Structure and Authentication Context**:
+  - Created `src/components/` with subfolders: `auth` (`Login.jsx`, `Signup.jsx`), `dashboard` (`Dashboard.jsx`), `user` (`Profile.jsx`).
+  - Developed `authContext.jsx` in `src/` to manage authentication state:
+    - Created `AuthProvider` to check `userId` in `localStorage`, setting `currentUser` if present.
+    - Wrapped `<App/>` in `<AuthProvider>` in `main.jsx` for global access to authentication state.
+- **Frontend Routing**:
+  - Installed `react-router-dom` (`npm install react-router-dom`) for client-side navigation.
+  - Created `Routes.jsx` with a `ProjectRoutes` function:
+    - Used `useAuth` from `authContext.js` to access `currentUser` and `setCurrentUser`.
+    - Implemented `useEffect` to check `userId` in `localStorage`, setting `currentUser` or redirecting to `/login` if unauthenticated.
+    - Redirected authenticated users from `/login` to `/dashboard` using `Navigate`.
+    - Defined routes for `Login`, `Signup`, `Dashboard`, and `Profile` components.
+    - Replaced `<App/>` with `<BrowserRouter><ProjectRoutes/></BrowserRouter>` in `main.jsx`.
+- **Signup and Login Functionality**:
+  - Installed `axios` (`npm install axios`) for API requests and `@primer/react` (`npm install @primer/react`) for GitHub-inspired styling.
+  - Created `auth.css` in `auth/` to style authentication components with `@primer/react`.
+  - Developed `Signup.jsx`:
+    - Managed state for `username`, `email`, `password`, and `loading` with `useState`.
+    - Implemented `handleSignup` to send credentials to the backend via `axios`, storing `token` and `userId` in `localStorage` upon success.
+  - Developed `Login.jsx`:
+    - Managed state for `email`, `password`, and `loading`.
+    - Implemented `handleLogin` to authenticate via `axios`, saving `token` and `userId` in `localStorage`.
