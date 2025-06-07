@@ -191,3 +191,40 @@ A terminal-based version control system inspired by Git, built with Node.js and 
   - Developed `Login.jsx`:
     - Managed state for `email`, `password`, and `loading`.
     - Implemented `handleLogin` to authenticate via `axios`, saving `token` and `userId` in `localStorage`.
+
+### Day 5: Dashboard, Navigation, Profile, and Contributions Heatmap
+
+- **Dashboard Development**:
+  - Created `Dashboard.jsx` with state management for repositories and search functionality:
+    - Defined `repositories` and `suggestedRepositories` state variables using `useState` to store user-specific and all repositories, respectively.
+    - Used `useEffect` with an empty dependency array to fetch data via `axios` (from Day 4), calling `fetchRepositories` for the current user’s repositories and `fetchSuggestedRepositories` for all public repositories.
+    - Managed `searchQuery` and `searchResults` state variables to filter repositories.
+    - Implemented `useEffect` with `[searchQuery, repositories]` dependencies to update `searchResults`, filtering by `repo.name.toLowerCase().includes(searchQuery.toLowerCase())` or showing all repositories if `searchQuery` is empty.
+  - Designed the dashboard UI with three sections:
+    - **Left Section**: Displayed `suggestedRepositories` with repository names and descriptions, styled with `@primer/react` (from Day 4).
+    - **Main Section**: Included a search input for `searchQuery` and listed `searchResults` with repository details.
+    - **Right Section**: Placeholder for upcoming events, to be implemented later.
+- **Navigation Bar**:
+  - Developed `Navbar.jsx` with navigation links using `react-router-dom` (from Day 4):
+    - Added a logo linking to `/dashboard` via `Link`.
+    - Included links for creating a new repository (`/create`) and accessing the user profile (`/profile`).
+    - Styled with `@primer/react` for a GitHub-inspired look, ensuring responsiveness.
+- **User Profile Page**:
+  - Installed `@primer/octicons-react` (`npm install @primer/octicons-react`) for GitHub-style icons in the profile UI.
+  - Created `Profile.jsx` with a `userDetails` state variable, populated via `useEffect` fetching user data with `axios` from the `/profile/:id` endpoint (from Day 3).
+  - Designed the profile UI with sections:
+    - Basic overview displaying username, email, and bio.
+    - Starred repositories section listing repositories from `userDetails.starRepos`.
+    - Profile image, username, and a follow button, styled with `@primer/react` and `@primer/octicons-react`.
+- **Contributions Heatmap**:
+  - Installed `@uiw/react-heat-map` (`npm install @uiw/react-heat-map`) to render a contributions heatmap.
+  - Implemented a placeholder heatmap in `Dashboard.jsx`:
+    - Created a function to generate random activity data between two dates for visualization.
+    - Defined a function to assign shades of green based on activity levels.
+    - Configured heatmap labels and styling for a GitHub-like appearance.
+  - Planned future integration with MongoDB `timestamps` field (to be added to models) for real-time contribution tracking via API updates.
+- **Logout Functionality**:
+  - Implemented logout in `Profile.jsx`:
+    - Removed `userId` and `token` from `localStorage` to end the session.
+    - Called `setCurrentUser(null)` from `authContext` (from Day 4) to clear authentication state.
+    - Redirected to `/login` using `useNavigate` from `react-router-dom`.
