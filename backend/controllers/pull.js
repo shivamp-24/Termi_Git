@@ -38,7 +38,8 @@ async function pullRepo() {
       const fileContent = await s3.getObject(params).promise();
 
       //write the file content inside commitDir
-      await fs.writeFile(path.join(repoPath, key), fileContent.Body);
+      const fileName = path.basename(key);
+      await fs.writeFile(path.join(commitDir, fileName), fileContent.Body);
 
       //initial success log
       console.log("Commit pulled from S3");

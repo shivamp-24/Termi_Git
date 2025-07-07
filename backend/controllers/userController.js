@@ -1,215 +1,171 @@
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs");
-const { MongoClient } = require("mongodb");
-const dotenv = require("dotenv");
-var ObjectId = require("mongodb").ObjectId;
-
-dotenv.config();
-const uri = process.env.MONGODB_URI;
-
-let client;
-
-async function connectClient() {
-  if (!client) {
-    client = new MongoClient(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    await client.connect();
-  }
-}
+const bcrypt = "bcryptjs";
+const mongoose = require("mongoose");
+const User = require("../models/userModel");
+const Repository = require("../models/repoModel");
+const Issue = require("../models/issueModel");
 
 const signup = async (req, res) => {
   const { username, email, password } = req.body;
   try {
-    //establish connection
-    await connectClient();
-
-    //find the db and create a new collection
-    const db = client.db("termigit");
-    const usersCollection = db.collection("users");
-
-    const user = await usersCollection.findOne({ username });
-
-    if (user) {
-      return res.status(400).json({ message: "User already exists!" });
+    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+    if (existingUser) {
+      return res
+        .status(409)
+        .json({ message: "Username or email already exists." });
     }
 
-    //hash password using bcrypt
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    //create new user
-    const newUser = {
+    const newUser = new User({
       username,
-      password: hashedPassword,
       email,
-      repositories: [],
-      followedUsers: [],
-      starRepos: [],
-    };
+      password: hashedPassword,
+    });
 
-    const result = await usersCollection.insertOne(newUser);
+    const savedUser = await newUser.save();
 
-    const token = jwt.sign(
-      { id: result.insertId },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: "1h" }
-    );
+    const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET_KEY, {
+      expiresIn: "1h",
+    });
 
-    res.json({ token, userId: result.insertId });
+    res.status(201).json({ token, userId: savedUser._id });
   } catch (error) {
-    console.error("Error during signup : ", error.message);
+    console.error("Error during signup:", error.message);
     res.status(500).send("Server error!");
   }
 };
 
 const login = async (req, res) => {
   const { email, password } = req.body;
-
   try {
-    await connectClient();
-
-    const db = client.db("termigit");
-    const usersCollection = db.collection("users");
-
-    //check if user exists with given email
-    const user = await usersCollection.findOne({ email });
-
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid credentials!" });
+      return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    //check if passwords match
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials!" });
+      return res.status(401).json({ message: "Invalid credentials." });
     }
 
-    //if correct details => return the token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY, {
       expiresIn: "1h",
     });
 
     res.json({ token, userId: user._id });
   } catch (error) {
-    console.error("Error during login : ", error.message);
+    console.error("Error during login:", error.message);
     res.status(500).send("Server error!");
   }
 };
 
 const getAllUsers = async (req, res) => {
   try {
-    await connectClient();
-
-    const db = client.db("termigit");
-    const usersCollection = db.collection("users");
-
-    //find all users
-    const users = await usersCollection.find({}).toArray();
-
+    const users = await User.find({}, "-password");
     res.json(users);
   } catch (error) {
-    console.error("Error during fetching : ", error.message);
+    console.error("Error fetching all users:", error.message);
     res.status(500).send("Server error!");
   }
 };
 
 const getUserProfile = async (req, res) => {
-  const currentID = req.params.id;
-
+  const { id } = req.params;
   try {
-    await connectClient();
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid user ID format." });
+    }
 
-    const db = client.db("termigit");
-    const usersCollection = db.collection("users");
-
-    //find the user with corresponding id
-    const user = await usersCollection.findOne({
-      _id: new ObjectId(currentID),
-    });
+    const user = await User.findById(id, "-password").populate(
+      "repositories",
+      "name"
+    );
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found." });
     }
 
     res.json(user);
   } catch (error) {
-    console.error("Error during fetching : ", error.message);
+    console.error("Error fetching user profile:", error.message);
     res.status(500).send("Server error!");
   }
 };
 
 const updateUserProfile = async (req, res) => {
-  const currentID = req.params.id;
+  const { id } = req.params;
   const { email, password } = req.body;
 
   try {
-    await connectClient();
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid user ID format." });
+    }
 
-    const db = client.db("termigit");
-    const usersCollection = db.collection("users");
+    const updateData = {};
+    if (email) updateData.email = email;
 
-    //updateFields will store updated fields
-    let updateFields = { email };
-
-    //if password is also provided in body, then update it in updateFields
     if (password) {
       const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      updateFields.password = hashedPassword;
+      updateData.password = await bcrypt.hash(password, salt);
     }
 
-    //check if user exists with given id and update
-    const result = await usersCollection.findOneAndUpdate(
-      {
-        _id: new ObjectId(currentID),
-      },
-      { $set: updateFields },
-      { returnDocument: "after" }
-    );
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    ).select("-password");
 
-    if (!result) {
-      return res.status(404).json({ message: "User not found" });
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found." });
     }
 
-    res.json({ message: "UserProfile updated", result });
+    res.json({
+      message: "User profile updated successfully",
+      user: updatedUser,
+    });
   } catch (error) {
-    console.error("Error during updating : ", error.message);
+    console.error("Error updating user profile:", error.message);
     res.status(500).send("Server error!");
   }
 };
 
 const deleteUserProfile = async (req, res) => {
-  const currentID = req.params.id;
-
+  const { id } = req.params;
   try {
-    await connectClient();
-
-    const db = client.db("termigit");
-    const usersCollection = db.collection("users");
-
-    //find the user with given id and delete if exists
-    const result = await usersCollection.deleteOne({
-      _id: new ObjectId(currentID),
-    });
-
-    if (result.deleteCount == 0) {
-      return res.status(404).json({ message: "User not found" });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid user ID format." });
     }
 
-    res.json({ message: "User Profile Deleted" });
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const repoIds = user.repositories;
+
+    if (repoIds && repoIds.length > 0) {
+      await Issue.deleteMany({ repository: { $in: repoIds } });
+    }
+
+    await Repository.deleteMany({ owner: id });
+
+    await User.findByIdAndDelete(id);
+
+    res
+      .status(200)
+      .json({ message: "User and all associated data deleted successfully." });
   } catch (error) {
-    console.error("Error during deleting : ", error.message);
+    console.error("Error deleting user profile:", error.message);
     res.status(500).send("Server error!");
   }
 };
 
 module.exports = {
-  getAllUsers,
-  login,
   signup,
+  login,
+  getAllUsers,
   getUserProfile,
   updateUserProfile,
   deleteUserProfile,

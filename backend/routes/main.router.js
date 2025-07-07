@@ -5,12 +5,16 @@ const issueRouter = require("./issue.router");
 
 const mainRouter = express.Router();
 
-mainRouter.use(userRouter);
-mainRouter.use(repoRouter);
-mainRouter.use(issueRouter);
-
 mainRouter.get("/", (req, res) => {
-  res.send("Welcome!");
+  res.json({
+    message: "Welcome to the TermiGit API!",
+    status: "OK",
+    timestamp: new Date().toISOString(),
+  });
 });
+
+mainRouter.use("/api/users", userRouter);
+mainRouter.use("/api/repos", repoRouter);
+mainRouter.use("/api/issues", issueRouter);
 
 module.exports = mainRouter;

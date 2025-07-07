@@ -24,11 +24,15 @@ const createRepository = async (req, res) => {
       issues,
     });
 
-    const result = await newRepository.save();
+    const savedRepository = await newRepository.save();
+
+    await User.findByIdAndUpdate(owner, {
+      $push: { repositories: savedRepository._id },
+    });
 
     res.status(201).json({
       message: "Repository created",
-      repositoryId: result._id,
+      repository: savedRepository,
     });
   } catch (error) {
     console.error("Error during repository creation : ", error.message);
@@ -53,7 +57,7 @@ const fetchRepositoryById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const repository = await Repository.find({ _id: id })
+    const repository = await Repository.findById(id)
       .populate("owner")
       .populate("issues");
 
@@ -68,7 +72,7 @@ const fetchRepositoryByName = async (req, res) => {
   const { name } = req.params;
 
   try {
-    const repository = await Repository.find({ name })
+    const repository = await Repository.findOne({ name })
       .populate("owner")
       .populate("issues");
 
@@ -122,19 +126,21 @@ const toggleVisibilityById = async (req, res) => {
 
 const updateRepositoryById = async (req, res) => {
   const { id } = req.params;
-  const { content, description } = req.body;
+  const { description } = req.body;
 
   try {
-    const repository = await Repository.findById(id);
+    const updateData = {};
+    if (description) updateData.description = description;
 
-    if (!repository) {
+    const updatedRepository = await Repository.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    );
+
+    if (!updatedRepository) {
       return res.status(404).json({ error: "Repository not found" });
     }
-
-    repository.content.push(content);
-    repository.description = description;
-
-    const updatedRepository = await repository.save();
 
     res.json({
       message: "Repository updated successfully",
@@ -150,13 +156,30 @@ const deleteRepositoryById = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const repository = await Repository.findByIdAndDelete(id);
+    const repository = await Repository.findById(id);
 
     if (!repository) {
       return res.status(404).json({ error: "Repository not found" });
     }
 
-    res.json({ message: "Repository deleted successfully" });
+    // 1. Delete all associated issues to prevent orphaned documents.
+    await Issue.deleteMany({ repository: repository._id });
+
+    // 2. Remove the repository's ID from its owner's list.
+    await User.findByIdAndUpdate(repository.owner, {
+      $pull: { repositories: repository._id },
+    });
+
+    // 3. Remove from any user's starRepos list.
+    await User.updateMany(
+      { starRepos: repository._id },
+      { $pull: { starRepos: repository._id } }
+    );
+    
+    // 4. Finally, delete the repository itself.
+    await repository.deleteOne();
+
+    res.json({ message: "Repository and all associated data deleted successfully" });
   } catch (error) {
     console.error("Error during deleting repository : ", error.message);
     res.status(500).send("Server error!");
